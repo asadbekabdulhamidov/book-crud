@@ -1,0 +1,24 @@
+{
+  "name": "book-crud-api",
+  "version": "1.0.0",
+  "description": "Express.js va JSON fayl bilan ishlaydigan to'liq CRUD API (GET, POST, PUT, PATCH, DELETE)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "express",
+    "crud",
+    "json",
+    "filereader",
+    "rest-api",
+    "vercel"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

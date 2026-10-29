@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1",
+    "name": "O'tkan kunlar",
+    "author": "Abdulla Qodiriy",
+    "description": "O'zbek adabiyotidagi birinchi roman. Otabek va Kumushbibi muhabbati hamda o'sha davrdagi ijtimoiy hayot haqida hikoya qiladi."
+  },
+  {
+    "id": "2",
+    "name": "Alkimyogar",
+    "author": "Paulo Koelo",
+    "description": "O'z orzusi va taqdiri ortidan piramidalar tomon safarga chiqqan andalusiyalik cho'pon yigit Santyago haqidagi falsafiy asar."
+  },
+  {
+    "id": "3",
+    "name": "Atom odatlari",
+    "author": "Jeyms Klir",
+    "description": "Kichik o'zgarishlar orqali hayotda ulkan natijalarga erishish va yaxshi odatlarni shakllantirish bo'yicha amaliy qo'llanma."
+  }
+]
