@@ -40,7 +40,22 @@
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-10 space-y-12">
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-10">
+
+    <!-- Live Server / Muhit ogohlantirishi -->
+    <div id="envWarning" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl mt-0.5"></i>
+        <div class="text-sm">
+          <p class="font-bold text-amber-800">Eslatma (Live Server yoki lokal fayl):</p>
+          <p class="text-amber-700 mt-1">
+            Siz ushbu sahifani Live Server (5500-port) yoki oddiy HTML fayl sifatida ochgansiz. Backend serveringiz (Express) esa 
+            <code class="bg-amber-100 px-1 rounded font-bold">http://localhost:5000</code> da ishlaydi. 
+            So'rovlar avtomatik ravishda <code class="bg-amber-100 px-1 rounded font-bold">http://localhost:5000</code> ga yo'naltirildi.
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- HTTP Metodlari Darsligi -->
     <section id="methods-guide" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
@@ -121,9 +136,20 @@
           </h2>
           <p class="text-slate-500 text-sm">Postman ochmasdan turib shu yerdan barcha metodlarni sinab ko'ring</p>
         </div>
-        <button onclick="fetchAllBooks()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow">
-          <i class="fa-solid fa-rotate"></i> Ro'yxatni yangilash
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="fetchAllBooks()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow transition">
+            <i class="fa-solid fa-rotate"></i> Yangilash
+          </button>
+        </div>
+      </div>
+
+      <!-- Backend Server URL Sozlamasi -->
+      <div class="mb-5 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center gap-3">
+        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">
+          <i class="fa-solid fa-server text-blue-500"></i> API Server:
+        </span>
+        <input type="text" id="apiBaseUrl" class="flex-1 w-full bg-white px-3 py-1.5 border border-slate-300 rounded text-xs font-mono" placeholder="http://localhost:5000 yoki bo'sh qoldiring">
+        <span class="text-[11px] text-slate-400">Joriy domen bo'yicha ishlaydi</span>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -199,7 +225,6 @@
       </div>
 
       <div id="booksGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <!-- Dinamik kitoblar kartochkasi shu yerga tushadi -->
         <div class="col-span-full text-center py-8 text-slate-400">Yuklanmoqda...</div>
       </div>
     </section>
@@ -222,10 +247,24 @@
       DELETE: 'bg-red-600 text-white border-red-600'
     };
 
+    // Agar foydalanuvchi Live Server (5500) yoki file:/// orqali ochgan bo'lsa
+    function getApiBase() {
+      const customBase = document.getElementById('apiBaseUrl').value.trim();
+      if (customBase) {
+        return customBase.replace(/\/$/, '');
+      }
+
+      if (window.location.protocol === 'file:' || window.location.port === '5500') {
+        document.getElementById('envWarning').classList.remove('hidden');
+        return 'http://localhost:5000';
+      }
+
+      return '';
+    }
+
     function selectMethod(method) {
       currentMethod = method;
 
-      // Tugmalar stilini yangilash
       ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].forEach(m => {
         const btn = document.getElementById(`btn-${m}`);
         if (m === method) {
@@ -256,7 +295,8 @@
 
     async function sendRequest() {
       const id = document.getElementById('inputId').value.trim();
-      let url = '/api/books';
+      const base = getApiBase();
+      let url = `${base}/api/books`;
       if (id && currentMethod !== 'POST') {
         url += `/${id}`;
       }
@@ -289,9 +329,27 @@
 
       try {
         const res = await fetch(url, options);
-        const data = await res.json();
+        const rawText = await res.text();
 
-        statusBadge.textContent = `${res.status} ${res.statusText}`;
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseError) {
+          // Agar server JSON o'rniga HTML qaytargan bo'lsa
+          statusBadge.textContent = `${res.status} HTML Javob`;
+          statusBadge.className = 'text-xs font-mono font-bold px-2 py-0.5 rounded bg-red-100 text-red-800';
+          jsonOutput.textContent = JSON.stringify({
+            xatolik: `Server JSON o'rniga HTML sahifa qaytardi (HTTP ${res.status}).`,
+            sababi: res.status === 404 
+              ? "So'rov yuborilgan manzil topilmadi. Agar lokalda bo'lsangiz, terminalda 'npm start' orqali server ishga tushirilganini tekshiring."
+              : "Server xatolik yuz berdi.",
+            manzil: url,
+            javob_namunasi: rawText.slice(0, 300) + '...'
+          }, null, 2);
+          return;
+        }
+
+        statusBadge.textContent = `${res.status} ${res.statusText || 'OK'}`;
         if (res.ok) {
           statusBadge.className = 'text-xs font-mono font-bold px-2 py-0.5 rounded bg-green-100 text-green-800';
         } else {
@@ -300,21 +358,36 @@
 
         jsonOutput.textContent = JSON.stringify(data, null, 2);
 
-        // Agar o'zgarish bo'lsa, kitoblar ro'yxatini qayta yuklaymiz
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(currentMethod) && res.ok) {
           fetchAllBooks();
         }
       } catch (err) {
-        statusBadge.textContent = 'Xato';
+        statusBadge.textContent = 'Ulanishda xato';
         statusBadge.className = 'text-xs font-mono font-bold px-2 py-0.5 rounded bg-red-100 text-red-800';
-        jsonOutput.textContent = JSON.stringify({ error: err.message }, null, 2);
+        jsonOutput.textContent = JSON.stringify({ 
+          xatolik: 'Server bilan bog\'lanib bo\'lmadi!',
+          sababi: 'Express backend server ishga tushmagan yoki CORS/Network xatosi yuz berdi.',
+          url: url,
+          message: err.message 
+        }, null, 2);
       }
     }
 
     async function fetchAllBooks() {
+      const base = getApiBase();
+      const url = `${base}/api/books`;
+
       try {
-        const res = await fetch('/api/books');
-        const result = await res.json();
+        const res = await fetch(url);
+        const rawText = await res.text();
+        let result;
+        try {
+          result = JSON.parse(rawText);
+        } catch {
+          console.warn('HTML javob keldi:', rawText.slice(0, 100));
+          return;
+        }
+
         const grid = document.getElementById('booksGrid');
         const countBadge = document.getElementById('booksCountBadge');
 
@@ -379,7 +452,11 @@
       return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    // Dastlabki yuklash
+    // Boshlang'ich tekshiruv
+    if (window.location.protocol === 'file:' || window.location.port === '5500') {
+      document.getElementById('apiBaseUrl').value = 'http://localhost:5000';
+    }
+
     fetchAllBooks();
   </script>
 </body>

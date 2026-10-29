@@ -28,11 +28,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ==============================================================================
 // Asosiy CRUD yo'llari (Routes)
+// Vercel serverless va lokal uchun /api/books va /books ikkalasiga ham javob beradi
 // ==============================================================================
 app.use('/api/books', bookRoutes);
+app.use('/books', bookRoutes);
 
 // Salomatlik tekshiruvi (Health check)
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.status(200).json({
     status: 'OK',
     message: 'Book CRUD API muvaffaqiyatli ishlamoqda!',

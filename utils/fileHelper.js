@@ -1,11 +1,34 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-// Asosiy fayl yo'li (loyiha papkasidagi data/books.json)
-const DEFAULT_DATA_PATH = path.join(__dirname, '..', 'data', 'books.json');
+// 3 ta standart boshlang'ich demo kitob
+const DEFAULT_BOOKS = [
+  {
+    id: "1",
+    name: "O'tkan kunlar",
+    author: "Abdulla Qodiriy",
+    description: "O'zbek adabiyotidagi birinchi roman. Otabek va Kumushbibi muhabbati hamda o'sha davrdagi ijtimoiy hayot haqida hikoya qiladi."
+  },
+  {
+    id: "2",
+    name: "Alkimyogar",
+    author: "Paulo Koelo",
+    description: "O'z orzusi va taqdiri ortidan piramidalar tomon safarga chiqqan andalusiyalik cho'pon yigit Santyago haqidagi falsafiy asar."
+  },
+  {
+    id: "3",
+    name: "Atom odatlari",
+    author: "Jeyms Klir",
+    description: "Kichik o'zgarishlar orqali hayotda ulkan natijalarga erishish va yaxshi odatlarni shakllantirish bo'yicha amaliy qo'llanma."
+  }
+];
 
-// Vercel serverless muhitida faqat /tmp papkasiga yozish mumkin (read-only filesystem cheklovini yechish uchun)
+// Vercel serverless va lokal muhitlar uchun fayl yo'llari
+const DEFAULT_DATA_PATH = path.join(process.cwd(), 'data', 'books.json');
 const TMP_DATA_PATH = path.join('/tmp', 'books.json');
+
+// Vercelda xotirada saqlash uchun kesh (in-memory fallback)
+let inMemoryBooks = [...DEFAULT_BOOKS];
 
 /**
  * Ma'lumotlar saqlanadigan to'g'ri fayl yo'lini aniqlash
@@ -24,24 +47,31 @@ function getFilePath() {
 async function readBooks() {
   const filePath = getFilePath();
 
-  try {
-    // Agar Vercel-da bo'lsak va /tmp/books.json hali yaratilmagan bo'lsa,
-    // dastlabki data/books.json faylidan nusxa ko'chirib olamiz
-    if (process.env.VERCEL) {
+  // 1. Agar Vercel muhitida bo'lsak va /tmp/books.json hali yaratilmagan bo'lsa:
+  if (process.env.VERCEL) {
+    try {
+      await fs.access(TMP_DATA_PATH);
+    } catch {
       try {
-        await fs.access(TMP_DATA_PATH);
+        // Avval lokal fayldan o'qishga urinib ko'ramiz
+        const initial = await fs.readFile(DEFAULT_DATA_PATH, 'utf-8');
+        await fs.writeFile(TMP_DATA_PATH, initial, 'utf-8');
       } catch {
-        const initialData = await fs.readFile(DEFAULT_DATA_PATH, 'utf-8');
-        await fs.writeFile(TMP_DATA_PATH, initialData, 'utf-8');
+        // Agar Vercel bundle-da data/books.json bo'lmasa, DEFAULT_BOOKS ni yozamiz
+        await fs.writeFile(TMP_DATA_PATH, JSON.stringify(DEFAULT_BOOKS, null, 2), 'utf-8');
       }
     }
+  }
 
+  // 2. Fayldan o'qish
+  try {
     const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data || '[]');
+    const parsed = JSON.parse(data || '[]');
+    inMemoryBooks = parsed;
+    return parsed;
   } catch (error) {
-    console.error('Fayldan o\'qishda xatolik:', error.message);
-    // Agar fayl topilmasa yoki bo'sh bo'lsa, bo'sh massiv qaytaramiz
-    return [];
+    console.warn('Fayldan o\'qishda xatolik, xotiradagi ma\'lumotlar ishlatiladi:', error.message);
+    return inMemoryBooks;
   }
 }
 
@@ -51,6 +81,7 @@ async function readBooks() {
  * @returns {Promise<boolean>}
  */
 async function writeBooks(books) {
+  inMemoryBooks = books;
   const filePath = getFilePath();
 
   try {
@@ -58,12 +89,14 @@ async function writeBooks(books) {
     await fs.writeFile(filePath, jsonString, 'utf-8');
     return true;
   } catch (error) {
-    console.error('Faylga yozishda xatolik:', error.message);
-    throw new Error('Ma\'lumotlarni saqlashda xatolik yuz berdi');
+    console.warn('Faylga yozishda xatolik, lekin xotiraga saqlandi:', error.message);
+    // Vercel serverless-da xotirada baribir saqlanadi
+    return true;
   }
 }
 
 module.exports = {
   readBooks,
   writeBooks,
+  DEFAULT_BOOKS,
 };
